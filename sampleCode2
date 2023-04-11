@@ -1,0 +1,729 @@
+import { Trans } from "@lingui/macro"; 
+
+import { Box, Fade, Paper, Popper } from "@material-ui/core"; 
+
+import Button from "@material-ui/core/Button"; 
+
+import Grid from "@material-ui/core/Grid"; 
+
+import Hidden from "@material-ui/core/Hidden"; 
+
+import ArrowBackIcon from "@material-ui/icons/ArrowBack"; 
+
+import { makeStyles } from "@material-ui/styles"; 
+
+import Divider from "@settings/components/shared/CustomDivider"; 
+
+import OptionalFieldEnums from "@xyz/utils-components/OptionalFieldEnums"; 
+
+import Localizer from "@xyz/utils-components/mui/Localizer"; 
+
+import { 
+
+    editingState, 
+
+    gridSpacingState, 
+
+    inMobileRangeState 
+
+} from "@xyz/utils-components/mui/state/Provider"; 
+
+import localization from "@xyz/utils-localization"; 
+
+import React from "react"; 
+
+import { useHistory, useRouteMatch } from "react-router-dom"; 
+
+import { atom, useRecoilState, useRecoilValue, useSetRecoilState } from "recoil"; 
+
+import DividerGridItem from "../components/DividerGridItem"; 
+
+import RightSide from "../components/RightSideDisclaimer"; 
+
+  
+
+export const skipDocumentState = atom({ 
+
+    key: "skipdocument", 
+
+    default: false 
+
+}); 
+
+const ParticipantFormWrapper = ({ 
+
+    title, 
+
+    pages, 
+
+    subtitle, 
+
+    link, 
+
+    formState, 
+
+    className, 
+
+    pageDetails, 
+
+    onSubmit, 
+
+    onNext, 
+
+    onBack, 
+
+    onCancel, 
+
+    onSave, 
+
+    children 
+
+}) => { 
+
+    const { currentPage, currentPageIndex, nextPageIndex, previousPageIndex } = 
+
+        pageDetails; 
+
+    const gridSpacing = useRecoilValue(gridSpacingState); 
+
+    const inMobileRange = useRecoilValue(inMobileRangeState); 
+
+    const isEditing = useRecoilValue(editingState); 
+
+    const setIsEditing = useSetRecoilState(editingState); 
+
+    const [documentSkip, setDocumentSkip] = useRecoilState(skipDocumentState); 
+
+    const [leftMaxWidth, rightMaxWidth] = currentPage.maxWidths || [ 
+
+        "490px", 
+
+        "215px" 
+
+    ]; 
+
+    const useStyles = makeStyles(theme => ({ 
+
+        messageBox: { 
+
+            height: "100%", 
+
+            overflow: "hidden", 
+
+            width: "100%" 
+
+        }, 
+
+        txtWrapper: { 
+
+            width: "400px", 
+
+            height: "320px", 
+
+            padding: theme.spacing(2), 
+
+            overflow: "hidden", 
+
+            color: "white", 
+
+            backgroundColor: "#616873", 
+
+            fontSize: "14px" 
+
+        } 
+
+    })); 
+
+  
+
+    const [anchorEl, setAnchorEl] = React.useState(null); 
+
+    const [open, setOpen] = React.useState(false); 
+
+    const [placement, setPlacement] = React.useState(); 
+
+    const classes = useStyles(); 
+
+  
+
+    const handleEnter = newPlacement => event => { 
+
+        setAnchorEl(event.currentTarget); 
+
+        setOpen(prev => placement !== newPlacement || !prev); 
+
+        setPlacement(newPlacement); 
+
+    }; 
+
+    const handleLeave = newPlacement => event => { 
+
+        setAnchorEl(event.currentTarget); 
+
+        setOpen(false); 
+
+        setPlacement(newPlacement); 
+
+    }; 
+
+  
+
+    const { url } = useRouteMatch(); 
+
+    const history = useHistory(); 
+
+  
+
+    const buttons = ( 
+
+        <> 
+
+            {nextPageIndex !== null ? ( 
+
+                <Grid 
+
+                    container 
+
+                    spacing={gridSpacing} 
+
+                    className="nested" 
+
+                    direction={inMobileRange ? "column-reverse" : "row"} 
+
+                > 
+
+                    {/* {previousPageIndex !== null && ( 
+
+                        <Grid item md="auto" xs={12}> 
+
+                            <Button 
+
+                                className={`fat-button${ 
+
+                                    inMobileRange ? " mb-30" : " mb-60" 
+
+                                }`} 
+
+                                onClick={() => { 
+
+                                    window.scrollTo(0, 0); 
+
+                                    history.go(-1); 
+
+                                }} 
+
+                                variant="contained" 
+
+                                color="secondary" 
+
+                            > 
+
+                                <Trans>Back</Trans> 
+
+                            </Button> 
+
+                        </Grid> 
+
+                    )} */} 
+
+                    <Grid item md={12} xs={12}> 
+
+                        <Button style={{maxWidth: "650px"}} 
+
+                            id="continueButton" 
+
+                            className={`fat-button${ 
+
+                                inMobileRange ? " mb-30" : " mb-20" 
+
+                            }`} 
+
+                            onClick={e => { 
+
+                                setTimeout(() => { 
+
+                                    window.scrollTo(0, 0); 
+
+                                }, 0); 
+
+                                const clickSource = 
+
+                                    e.target.dataset.clickSource; 
+
+                                onNext(() => { 
+
+                                    if (clickSource) { 
+
+                                        setIsEditing(false); 
+
+                                        history.push(`${url}/review`); 
+
+                                    } else { 
+
+                                        history.push( 
+
+                                            `${url}/${pages[nextPageIndex]?.id}` 
+
+                                        ); 
+
+                                    } 
+
+                                }); 
+
+                            }} 
+
+                            variant="contained" 
+
+                            color="primary" 
+
+                            fullWidth={true} 
+
+                        > 
+
+                            <Trans>Continue</Trans> 
+
+                        </Button> 
+
+                    </Grid> 
+
+  
+
+                    {currentPage.id === "documented-proof" ? ( 
+
+                        <Grid item md={12} xs={12}> 
+
+                        <Button style={{maxWidth: "650px"}} 
+
+                            id="skipButton" 
+
+                            className={`fat-button${ 
+
+                                inMobileRange ? " mb-30" : " mb-60" 
+
+                            }`} 
+
+                            onClick={ () => { 
+
+                                setDocumentSkip(false); 
+
+                                history.push( 
+
+                                    `${url}/${pages[nextPageIndex]?.id}` 
+
+                                ); 
+
+                            }} 
+
+                            fullWidth={true} 
+
+                        > 
+
+                            <Trans>Skip this step for now</Trans> 
+
+                        </Button> 
+
+                    </Grid> 
+
+                    ) : null} 
+
+  
+
+                </Grid> 
+
+            ) : ( 
+
+                <Grid container spacing={gridSpacing} className="nested"> 
+
+                    {/* this button is very helpful for testing, but was never in 
+
+                    the design 
+
+                    <Grid item md="auto" xs={12}> 
+
+                        <Button 
+
+                            className={`fat-button${ 
+
+                                inMobileRange ? " mb-30" : " mb-60" 
+
+                            }`} 
+
+                            onClick={() => 
+
+                                onSave(() => console.log({ formState })) 
+
+                            } 
+
+                            variant="contained" 
+
+                            color="secondary" 
+
+                        > 
+
+                            <Trans>Save</Trans> 
+
+                        </Button> 
+
+                        </Grid>*/} 
+
+                        <Grid item md={12} xs={12}> 
+
+                        <Button  id="review-autosave" 
+
+                            className={`fat-button${ 
+
+                                inMobileRange ? " mb-30" : " mb-30" 
+
+                            }`} 
+
+                            variant="contained" 
+
+                            fullWidth={true} 
+
+                            disabled = {true} 
+
+                        > 
+
+                            <Trans>Your application was auto-saved</Trans> 
+
+                        </Button> 
+
+                    </Grid> 
+
+                    <Grid item md={12} xs={12}> 
+
+                        <Button 
+
+                            id="review-continue-button" 
+
+                            className={`fat-button${ 
+
+                                inMobileRange ? " mb-30" : " mb-60" 
+
+                            }`} 
+
+                            onClick={()=>{onSave()}} 
+
+                            variant="contained" 
+
+                            color="primary" 
+
+                            fullWidth={true} 
+
+                        > 
+
+                            <Trans>Continue</Trans> 
+
+                        </Button> 
+
+                    </Grid> 
+
+                </Grid> 
+
+            )} 
+
+        </> 
+
+    ); 
+
+  
+
+    const interpolateText = str => { 
+
+        if (str.includes("{")) { 
+
+            const { entity } = formState; 
+
+            const matches = str.match(/\{([^}]+)\}/g); 
+
+  
+
+            matches.forEach(match => { 
+
+                const key = match.substring(1, match.length - 1); 
+
+                const entityValue = 
+
+                    OptionalFieldEnums[key]?.[entity?.entityType] || 
+
+                    entity?.[key]; 
+
+                str = str.replace(match, entityValue); 
+
+            }); 
+
+        } 
+
+  
+
+        str = localization._ext(str); 
+
+  
+
+        return str; 
+
+    }; 
+
+  
+
+    return ( 
+
+        <Localizer> 
+
+            <Button style={{marginLeft: "20px"}} 
+
+                className="back-button" 
+
+                onClick={() => { 
+
+                    history.go(-1); 
+
+                }} 
+
+            > 
+
+                <ArrowBackIcon fontSize="large" /> 
+
+                <Trans>Back</Trans> 
+
+            </Button> 
+
+            <Grid container spacing={gridSpacing} alignItems="flex-start"> 
+
+                <Grid item md={8} xs={12}> 
+
+                    <h1 
+
+                        className={`larger mt-0${ 
+
+                            subtitle ? " mb-20" : " mb-40" 
+
+                        }`} 
+
+                    > 
+
+                        {interpolateText(title)} 
+
+                    </h1> 
+
+                    <Box className={classes.messageBox}> 
+
+                        <Popper 
+
+                            open={open} 
+
+                            anchorEl={anchorEl} 
+
+                            placement={placement} 
+
+                            transition 
+
+                        > 
+
+                            {({ TransitionProps }) => ( 
+
+                                <Fade {...TransitionProps} timeout={350}> 
+
+                                    <Paper> 
+
+                                        <Grid className={classes.txtWrapper}> 
+
+                                            <span> 
+
+                                                <Trans> 
+
+                                                    Important Information About 
+
+                                                    Procedures for Opening a New 
+
+                                                    Account 
+
+                                                </Trans> 
+
+                                            </span> 
+
+                                            <br /> 
+
+                                            <br /> 
+
+                                            <span> 
+
+                                            <Trans> 
+
+                                                    To help the government fight the 
+
+                                                    funding of terrorism and money 
+
+                                                    laundering activities, Federal 
+
+                                                    law requires all financial 
+
+                                                    institutions to obtain, verify, 
+
+                                                    and record information that 
+
+                                                    identifies each person who opens 
+
+                                                    an account. 
+
+                                                </Trans> 
+
+                                            </span> 
+
+                                            <br /> 
+
+                                            <br /> 
+
+                                            <span> 
+
+                                                <Trans> 
+
+                                                    What this means for you: When 
+
+                                                    you open account, we will ask 
+
+                                                    for your name, address, date of 
+
+                                                    birth (as applicable) and other 
+
+                                                    information that will allow us 
+
+                                                    to identify you. We may also ask 
+
+                                                    to see your driver’s license or 
+
+                                                    other identifying documents. 
+
+                                                </Trans> 
+
+                                            </span> 
+
+                                        </Grid> 
+
+                                    </Paper> 
+
+                                </Fade> 
+
+                            )} 
+
+                        </Popper> 
+
+                    </Box> 
+
+                    {subtitle && ( 
+
+                        <p className="larger mb-30"> 
+
+                            {interpolateText(subtitle)} 
+
+                        </p> 
+
+                    )} 
+
+                    {link && ( 
+
+                        <a 
+
+                            className="mb-20" 
+
+                            onMouseEnter={handleEnter("right")} 
+
+                            onMouseLeave={handleLeave("right")} 
+
+                        > 
+
+                            {interpolateText(link)} 
+
+                        </a> 
+
+                    )} 
+
+  
+
+                    <div 
+
+                        style={{ 
+
+                            maxWidth: inMobileRange ? "100%" : leftMaxWidth 
+
+                        }} 
+
+                    > 
+
+                        <div className="mb-60">{children}</div> 
+
+                    </div> 
+
+                    {buttons} 
+
+                </Grid> 
+
+                <Hidden smDown> 
+
+                    <DividerGridItem xs={1} /> 
+
+                </Hidden> 
+
+                <Hidden mdUp> 
+
+                    <Grid item xs={12}> 
+
+                        <Divider /> 
+
+                    </Grid> 
+
+                </Hidden> 
+
+                <Grid 
+
+                    item 
+
+                    md={3} 
+
+                    xs={12} 
+
+                    style={{ alignSelf: "stretch", display: "flex" }} 
+
+                > 
+
+                    <div 
+
+                        style={{ 
+
+                            maxWidth: inMobileRange ? "100%" : rightMaxWidth, 
+
+                            margin: "0 auto", 
+
+                            display: "flex", 
+
+                            flexDirection: "column", 
+
+                            justifyContent: "space-between" 
+
+                        }} 
+
+                    > 
+
+                        <RightSide 
+
+                            type={currentPage.rightSideType || "default"} 
+
+                            step={currentPage.activeStep} 
+
+                        /> 
+
+                    </div> 
+
+                </Grid> 
+
+            </Grid> 
+
+        </Localizer> 
+
+    ); 
+
+}; 
+
+  
+
+export default ParticipantFormWrapper; 
