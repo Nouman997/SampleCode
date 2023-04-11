@@ -1,0 +1,527 @@
+import { gridSpacingState } from "@xyz/utils-components/mui/state/Provider"; 
+
+import localization from "@txyz/utils-localization"; 
+
+import React from "react"; 
+
+import { Route, useParams, useRouteMatch } from "react-router-dom"; 
+
+import { useRecoilValue } from "recoil"; 
+
+import { evaluateCondition } from "./Conditionals"; 
+
+import { buildFieldClassName, interpolateString } from "./FieldHelpers"; 
+
+import fieldMappers from "./FieldMappers"; 
+
+import useFormState from "./FormState"; 
+
+import useNavigator from "./Navigation"; 
+
+import useValidator from "./Validation"; 
+
+  
+
+const translateLocalizableFieldProps = (formState, fieldProps) => { 
+
+    const { 
+
+        label, 
+
+        title, 
+
+        placeholder, 
+
+        yesText, 
+
+        noText, 
+
+        explanationLabel, 
+
+        explanationLabelHtml, 
+
+        hint, 
+
+        labelPlaceholders, 
+
+        ...otherFieldProps 
+
+    } = fieldProps; 
+
+  
+
+    return { 
+
+        ...otherFieldProps, 
+
+        label: labelPlaceholders 
+
+            ? interpolateString(formState, labelPlaceholders, label) 
+
+            : localization._ext(label), 
+
+        title: localization._ext(title), 
+
+        placeholder: localization._ext(placeholder), 
+
+        yesText: localization._ext(yesText), 
+
+        noText: localization._ext(noText), 
+
+        explanationLabel: localization._ext(explanationLabel), 
+
+        explanationLabelHtml: localization._ext(explanationLabelHtml), 
+
+        hint: localization._ext(hint) 
+
+    }; 
+
+}; 
+
+  
+
+const mapFieldComponent = ( 
+
+    { formState, buildStateLink, setFormState }, 
+
+    watcher, 
+
+    field, 
+
+    gridSpacing 
+
+) => { 
+
+    const fieldMapper = fieldMappers[field.type]; 
+
+    if (!fieldMapper) throw new Error(`Unsupported field type: ${field.type}.`); 
+
+  
+
+    return fieldMapper({ 
+
+        formState, 
+
+        setFormState, 
+
+        buildStateLink, 
+
+        watcher, 
+
+        gridSpacing, 
+
+        className: buildFieldClassName(field.fieldKey), 
+
+        ...translateLocalizableFieldProps(formState, field) 
+
+    }); 
+
+}; 
+
+  
+
+const mapFieldset = ( 
+
+    formBuilderState, 
+
+    watcher, 
+
+    fieldset, 
+
+    gridSpacing, 
+
+    givenFieldsetKey 
+
+) => { 
+
+    const { formState, predefinedConditions } = formBuilderState; 
+
+    const fieldsetKey = givenFieldsetKey || "root"; 
+
+    return ( 
+
+        <div className="fieldset-container" key={fieldsetKey}> 
+
+            {fieldset 
+
+                .filter(({ condition }) => 
+
+                    evaluateCondition( 
+
+                        formState, 
+
+                        predefinedConditions, 
+
+                        condition 
+
+                    ) 
+
+                ) 
+
+                .map(({ condition, ...fieldsetElement }) => { 
+
+                    const { 
+
+                        fieldset: nestedFieldset, 
+
+                        fieldsetKey: nestedFieldsetKey 
+
+                    } = fieldsetElement; 
+
+                    return nestedFieldset 
+
+                        ? mapFieldset( 
+
+                              formBuilderState, 
+
+                              watcher, 
+
+                              nestedFieldset, 
+
+                              gridSpacing, 
+
+                              nestedFieldsetKey 
+
+                          ) 
+
+                        : mapFieldComponent( 
+
+                              formBuilderState, 
+
+                              watcher, 
+
+                              fieldsetElement, 
+
+                              gridSpacing 
+
+                          ); 
+
+                })} 
+
+        </div> 
+
+    ); 
+
+}; 
+
+  
+
+const asReadOnlyForm = (formBuilderState, pages) => { 
+
+    const { formState, predefinedConditions } = formBuilderState; 
+
+    const watcher = { readOnly: true }; 
+
+    return pages 
+
+        .filter(({ condition }) => 
+
+            evaluateCondition(formState, predefinedConditions, condition) 
+
+        ) 
+
+        .map(({ fieldset, title }, pageIndex) => { 
+
+            const key = `pageIndex-${pageIndex}`; 
+
+            return ( 
+
+                <div key={key}> 
+
+                    <legend>{localization._ext(title)}</legend> 
+
+                    {mapFieldset(formBuilderState, watcher, fieldset)} 
+
+                </div> 
+
+            ); 
+
+        }); 
+
+}; 
+
+  
+
+const FormComponent = ({ 
+
+    formBuilderState, 
+
+    watcher, 
+
+    fieldset, 
+
+    gridSpacing, 
+
+    setPageIndex, 
+
+    pages 
+
+}) => { 
+
+    const { pageId } = useParams(); 
+
+    React.useEffect(() => { 
+
+        if (Boolean(pageId)) { 
+
+            setPageIndex(pages.findIndex(({ id }) => id === pageId)); 
+
+        } 
+
+    }, [pageId]); 
+
+  
+
+    return mapFieldset(formBuilderState, watcher, fieldset, gridSpacing); 
+
+}; 
+
+  
+
+const Intermediate = ({ 
+
+    FormWrapper, 
+
+    formState, 
+
+    actions, 
+
+    className, 
+
+    formBuilderState, 
+
+    validationConfig, 
+
+    pages, 
+
+    readOnly 
+
+}) => { 
+
+    const gridSpacing = useRecoilValue(gridSpacingState); 
+
+    const { path } = useRouteMatch(); 
+
+  
+
+    const [validationResult, validator] = useValidator( 
+
+        formBuilderState, 
+
+        validationConfig 
+
+    ); 
+
+    const [pageDetails, navigator, setPageIndex] = useNavigator( 
+
+        formBuilderState, 
+
+        validator 
+
+    ); 
+
+  
+
+    const watcher = { ...validationResult, readOnly }; 
+
+    const { currentPage } = pageDetails; 
+
+    const { fieldset, helpQuestions, ...titleProps } = currentPage; 
+
+    const { predefinedConditions } = formBuilderState; 
+
+  
+
+    const helpQuestionsToDisplay = 
+
+        helpQuestions && 
+
+        helpQuestions.filter(({ condition }) => 
+
+            evaluateCondition(formState, predefinedConditions, condition) 
+
+        ); 
+
+  
+
+    return readOnly ? ( 
+
+        asReadOnlyForm(formBuilderState, pages) 
+
+    ) : ( 
+
+        <FormWrapper 
+
+            {...titleProps} 
+
+            pages={pages} 
+
+            formState={formState} 
+
+            helpQuestions={helpQuestionsToDisplay} 
+
+            className={className} 
+
+            pageDetails={pageDetails} 
+
+            onSubmit={() => { 
+
+                navigator.handleSubmit(); 
+
+            }} 
+
+            onNext={(cb) => { 
+
+                navigator.handleNext(cb); 
+
+            }} 
+
+            onBack={() => { 
+
+                navigator.handleBack(); 
+
+            }} 
+
+            onSave={(cb) => { 
+
+                navigator.handleSave(cb); 
+
+            }} 
+
+            onCancel={actions.onCancel} 
+
+        > 
+
+            <Route path={`${path}/:pageId?`}> 
+
+                <FormComponent 
+
+                    formBuilderState={formBuilderState} 
+
+                    watcher={watcher} 
+
+                    fieldset={fieldset} 
+
+                    gridSpacing={gridSpacing} 
+
+                    setPageIndex={setPageIndex} 
+
+                    pages={pages} 
+
+                /> 
+
+            </Route> 
+
+        </FormWrapper> 
+
+    ); 
+
+}; 
+
+  
+
+const JsonFormBuilder = ({ 
+
+    FormWrapper, 
+
+    className, 
+
+    actions, 
+
+    readOnly, 
+
+    schema, 
+
+    initialValues, 
+
+    stateSafe 
+
+}) => { 
+
+    const { 
+
+        predefinedConditions, 
+
+        validationConfig, 
+
+        mutators, 
+
+        defaultValues: jsonDefaultValues, 
+
+        pages 
+
+    } = schema; 
+
+  
+
+    const [formState, fieldCache, buildStateLink, setFormState] = useFormState({ 
+
+        pages, 
+
+        predefinedConditions, 
+
+        formValues: { jsonDefaultValues, initialValues }, 
+
+        mutators, 
+
+        stateSafe 
+
+    }); 
+
+  
+
+    const formBuilderState = { 
+
+        formState, 
+
+        setFormState, 
+
+        predefinedConditions, 
+
+        fieldCache, 
+
+        buildStateLink, 
+
+        schema, 
+
+        actions 
+
+    }; 
+
+  
+
+    if (Object.keys(formState).length === 0) return null; // first render 
+
+  
+
+    return ( 
+
+        <Intermediate 
+
+            FormWrapper={FormWrapper} 
+
+            formState={formState} 
+
+            setFormState={setFormState} 
+
+            actions={actions} 
+
+            className={className} 
+
+            formBuilderState={formBuilderState} 
+
+            validationConfig={validationConfig} 
+
+            pages={pages} 
+
+            readOnly={readOnly} 
+
+        /> 
+
+    ); 
+
+}; 
+
+  
+
+export default JsonFormBuilder; 
